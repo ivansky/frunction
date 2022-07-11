@@ -1,5 +1,3 @@
-import { Concat } from 'typescript-tuple';
-
 const UNKNOWN_REFERENCE_NAME = `Unknown`;
 
 type SomeAsyncFn<R = any> = (...args: any[]) => Promise<R>;
@@ -149,7 +147,7 @@ class Frunction<
   // }
 
   consume<Adds extends Fraction<any>[]>(fractions: Adds) {
-    return new Frunction<EntryArg, Concat<List, Adds>, Outcome>(
+    return new Frunction<EntryArg, [...List, ...Adds], Outcome>(
       this.fractions.concat(fractions)
     );
   }
