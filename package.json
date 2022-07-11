@@ -3,9 +3,23 @@
   "version": "1.0.0",
   "main": "index.js",
   "license": "MIT",
+  "author": "Ivan Martianov",
+  "scripts": {
+    "test": "jest"
+  },
   "devDependencies": {
+    "@types/jest": "^28.1.4",
+    "jest": "^28.1.2",
     "prettier": "^2.7.1",
+    "ts-jest": "^28.0.5",
     "typescript": "^4.7.4",
     "typescript-tuple": "^5.0.1"
-  }
+  },
+  "keywords": [
+    "async",
+    "graph",
+    "fraction",
+    "unit",
+    "function"
+  ]
 }

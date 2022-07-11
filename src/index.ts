@@ -2,7 +2,7 @@ import { Concat } from 'typescript-tuple';
 
 const UNKNOWN_REFERENCE_NAME = `Unknown`;
 
-type SomeAsyncFn = (...args: any[]) => Promise<any>;
+type SomeAsyncFn<R = any> = (...args: any[]) => Promise<R>;
 
 class Reference<F extends SomeAsyncFn> {
   constructor(
@@ -84,6 +84,10 @@ type MapFractionsResult<Tuple extends [...Fraction<any>[]]> = {
 const inputRef = new Reference<any>('frunction-input');
 const outputRef = new Reference<any>('frunction-output');
 
+function rootInputOf<Input>() {
+  return inputRef as Reference<SomeAsyncFn<Input>>;
+}
+
 class Frunction<
   EntryArg = never,
   List extends Fraction<any>[] = [],
@@ -150,9 +154,14 @@ class Frunction<
     );
   }
 
-  outcome<O extends (results: MapFractionsResult<List>) => any | Promise<any>>(
-    handler: O
-  ) {
+  outcome<
+    O extends (
+      results: MapFractionsResult<List>,
+      resultGetter: <T extends Reference<any>>(
+        r: T
+      ) => ExtractReferenceResultType<T>
+    ) => any | Promise<any>
+  >(handler: O) {
     return new Frunction<EntryArg, List, Awaited<ReturnType<O>>>(
       this.fractions,
       handler
@@ -197,7 +206,9 @@ class Frunction<
     };
   }
 
-  static entryOf<StartEntryArg = never>() {
+  static entryOf<StartEntryArg = never>(
+    ref?: Reference<SomeAsyncFn<StartEntryArg>>
+  ) {
     return new Frunction<StartEntryArg>([]);
   }
 
@@ -208,7 +219,7 @@ class Frunction<
 
 const { entryOf, buildFn } = Frunction;
 
-export { entryOf };
+export { entryOf, buildFn, rootInputOf };
 
 type ConsumeFunction<
   D1 extends Reference<any> = never,
