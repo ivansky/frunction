@@ -2,20 +2,23 @@ const UNKNOWN_REFERENCE_NAME = `Unknown`;
 
 type SomeAsyncFn<R = any> = (...args: any[]) => Promise<R>;
 
-class Reference<F extends SomeAsyncFn> {
+class Reference<R> {
   constructor(
-    // public readonly fraction: Fraction<F>,
     public readonly name: string = UNKNOWN_REFERENCE_NAME,
     public readonly symbol = Symbol(name),
     public readonly isOptional = false
   ) {}
 
-  optional(): OptionalReference<F> {
-    return new OptionalReference<F>(this.name, this.symbol);
+  optional(): OptionalReference<R> {
+    return new OptionalReference<R>(this.name, this.symbol);
+  }
+
+  toString(): string {
+    return `${this.name}`;
   }
 }
 
-class OptionalReference<F extends SomeAsyncFn> extends Reference<F> {
+class OptionalReference<R> extends Reference<R> {
   constructor(name: string, symbol: symbol) {
     super(name, symbol, true);
   }
@@ -30,22 +33,40 @@ function getFnName<F extends (...args: any[]) => Promise<any>>(fn: F): string {
 }
 
 class Fraction<F extends (...args: any[]) => Promise<any>> {
+  private reference: Reference<Awaited<ReturnType<F>>>;
+
   constructor(
     public deps: Reference<any>[],
     private fn: F,
     name: string = getFnName(fn),
-    public readonly ref = new Reference<F>(name)
-  ) {}
+    ref = new Reference<Awaited<ReturnType<F>>>(name)
+  ) {
+    this.reference = ref;
+  }
+
+  get ref() {
+    return this.reference;
+  }
 
   // ref might be optional(ref)
   awaitsFor(ref: unknown) {}
 
   optional() {
-    return this.ref.optional();
+    return this.reference.optional();
+  }
+
+  withRef(ref: Reference<Awaited<ReturnType<F>>>) {
+    return new Fraction(this.deps, this.fn, ref.name, ref);
   }
 
   async execute(...args: Parameters<F>): Promise<Awaited<ReturnType<F>>> {
     return await this.fn(...args);
+  }
+
+  toString(): string {
+    return `Fraction#${this.reference.name}(${this.deps
+      .map(d => d.name)
+      .join(',')})`;
   }
 }
 
@@ -64,9 +85,9 @@ type ExtractOutcomeType<FR extends Frunction<any, any>> = FR extends Frunction<
   : never;
 
 type ExtractReferenceResultType<T extends Reference<any>> = T extends Reference<
-  infer F
+  infer R
 >
-  ? Awaited<ReturnType<F>>
+  ? R
   : never;
 
 type ExtractFractionResultType<T extends Fraction<any>> = T extends Fraction<
@@ -83,7 +104,7 @@ const inputRef = new Reference<any>('frunction-input');
 const outputRef = new Reference<any>('frunction-output');
 
 function rootInputOf<Input>() {
-  return inputRef as Reference<SomeAsyncFn<Input>>;
+  return inputRef as Reference<Input>;
 }
 
 class Frunction<
@@ -145,6 +166,20 @@ class Frunction<
   //     this.outcomeHandler
   //   );
   // }
+
+  constant<R, F extends Fraction<SomeAsyncFn<R>>>(ref: Reference<R>, value: R) {
+    // @todo make constants container inside Frunction?
+    return new Frunction<EntryArg, [...List, F], Outcome>(
+      this.fractions.concat([
+        new Fraction<SomeAsyncFn<R>>(
+          [],
+          () => Promise.resolve(value),
+          ref.name,
+          ref
+        ),
+      ])
+    );
+  }
 
   consume<Adds extends Fraction<any>[]>(fractions: Adds) {
     return new Frunction<EntryArg, [...List, ...Adds], Outcome>(
@@ -209,15 +244,11 @@ class Frunction<
   ) {
     return new Frunction<StartEntryArg>([]);
   }
-
-  static buildFn<StartEntryArg = never, OutcomeResult = void>() {
-    return new Frunction<StartEntryArg, [], OutcomeResult>([]);
-  }
 }
 
-const { entryOf, buildFn } = Frunction;
+const { entryOf } = Frunction;
 
-export { entryOf, buildFn, rootInputOf };
+export { entryOf, rootInputOf };
 
 type ConsumeFunction<
   D1 extends Reference<any> = never,
